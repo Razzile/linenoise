@@ -1,5 +1,7 @@
 # Linenoise
 
+## This is my edit of linenoise for various projects, probably not suitable for other people  
+
 A minimal, zero-config, BSD licensed, readline replacement used in Redis,
 MongoDB, and Android.
 
