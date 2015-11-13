@@ -151,24 +151,24 @@ struct linenoiseState {
 
 enum KEY_ACTION{
 	KEY_NULL = 0,	    /* NULL */
-	CTRL_A = 1,         /* Ctrl+a */
-	CTRL_B = 2,         /* Ctrl-b */
-	CTRL_C = 3,         /* Ctrl-c */
-	CTRL_D = 4,         /* Ctrl-d */
-	CTRL_E = 5,         /* Ctrl-e */
-	CTRL_F = 6,         /* Ctrl-f */
-	CTRL_H = 8,         /* Ctrl-h */
-	TAB = 9,            /* Tab */
-	CTRL_K = 11,        /* Ctrl+k */
-	CTRL_L = 12,        /* Ctrl+l */
-	ENTER = 13,         /* Enter */
-	CTRL_N = 14,        /* Ctrl-n */
-	CTRL_P = 16,        /* Ctrl-p */
-	CTRL_T = 20,        /* Ctrl-t */
-	CTRL_U = 21,        /* Ctrl+u */
-	CTRL_W = 23,        /* Ctrl+w */
-	ESC = 27,           /* Escape */
-	BACKSPACE =  127    /* Backspace */
+	KEY_CTRL_A = 1,         /* Ctrl+a */
+	KEY_CTRL_B = 2,         /* Ctrl-b */
+	KEY_CTRL_C = 3,         /* Ctrl-c */
+	KEY_CTRL_D = 4,         /* Ctrl-d */
+	KEY_CTRL_E = 5,         /* Ctrl-e */
+	KEY_CTRL_F = 6,         /* Ctrl-f */
+	KEY_CTRL_H = 8,         /* Ctrl-h */
+	KEY_TAB = 9,            /* Tab */
+	KEY_CTRL_K = 11,        /* Ctrl+k */
+	KEY_CTRL_L = 12,        /* Ctrl+l */
+	KEY_ENTER = 13,         /* Enter */
+	KEY_CTRL_N = 14,        /* Ctrl-n */
+	KEY_CTRL_P = 16,        /* Ctrl-p */
+	KEY_CTRL_T = 20,        /* Ctrl-t */
+	KEY_CTRL_U = 21,        /* Ctrl+u */
+	KEY_CTRL_W = 23,        /* Ctrl+w */
+	KEY_ESC = 27,           /* Escape */
+	KEY_BACKSPACE =  127    /* Backspace */
 };
 
 static void linenoiseAtExit(void);
@@ -275,7 +275,7 @@ static int getCursorPosition(int ifd, int ofd) {
     buf[i] = '\0';
 
     /* Parse it. */
-    if (buf[0] != ESC || buf[1] != '[') return -1;
+    if (buf[0] != KEY_ESC || buf[1] != '[') return -1;
     if (sscanf(buf+2,"%d;%d",&rows,&cols) != 2) return -1;
     return cols;
 }
@@ -770,19 +770,19 @@ static int linenoiseEdit(int stdin_fd, int stdout_fd, char *buf, size_t buflen, 
         }
 
         switch(c) {
-        case ENTER:    /* enter */
+        case KEY_ENTER:    /* enter */
             history_len--;
             free(history[history_len]);
             if (mlmode) linenoiseEditMoveEnd(&l);
             return (int)l.len;
-        case CTRL_C:     /* ctrl-c */
+        case KEY_CTRL_C:     /* ctrl-c */
             errno = EAGAIN;
             return -1;
-        case BACKSPACE:   /* backspace */
+        case KEY_BACKSPACE:   /* backspace */
         case 8:     /* ctrl-h */
             linenoiseEditBackspace(&l);
             break;
-        case CTRL_D:     /* ctrl-d, remove char at right of cursor, or if the
+        case KEY_CTRL_D:     /* ctrl-d, remove char at right of cursor, or if the
                             line is empty, act as end-of-file. */
             if (l.len > 0) {
                 linenoiseEditDelete(&l);
@@ -792,7 +792,7 @@ static int linenoiseEdit(int stdin_fd, int stdout_fd, char *buf, size_t buflen, 
                 return -1;
             }
             break;
-        case CTRL_T:    /* ctrl-t, swaps current character with previous. */
+        case KEY_CTRL_T:    /* ctrl-t, swaps current character with previous. */
             if (l.pos > 0 && l.pos < l.len) {
                 int aux = buf[l.pos-1];
                 buf[l.pos-1] = buf[l.pos];
@@ -801,19 +801,19 @@ static int linenoiseEdit(int stdin_fd, int stdout_fd, char *buf, size_t buflen, 
                 refreshLine(&l);
             }
             break;
-        case CTRL_B:     /* ctrl-b */
+        case KEY_CTRL_B:     /* ctrl-b */
             linenoiseEditMoveLeft(&l);
             break;
-        case CTRL_F:     /* ctrl-f */
+        case KEY_CTRL_F:     /* ctrl-f */
             linenoiseEditMoveRight(&l);
             break;
-        case CTRL_P:    /* ctrl-p */
+        case KEY_CTRL_P:    /* ctrl-p */
             linenoiseEditHistoryNext(&l, LINENOISE_HISTORY_PREV);
             break;
-        case CTRL_N:    /* ctrl-n */
+        case KEY_CTRL_N:    /* ctrl-n */
             linenoiseEditHistoryNext(&l, LINENOISE_HISTORY_NEXT);
             break;
-        case ESC:    /* escape sequence */
+        case KEY_ESC:    /* escape sequence */
             /* Read the next two bytes representing the escape sequence.
              * Use two calls to handle slow terminals returning the two
              * chars at different times. */
@@ -871,27 +871,27 @@ static int linenoiseEdit(int stdin_fd, int stdout_fd, char *buf, size_t buflen, 
         default:
             if (linenoiseEditInsert(&l,c)) return -1;
             break;
-        case CTRL_U: /* Ctrl+u, delete the whole line. */
+        case KEY_CTRL_U: /* Ctrl+u, delete the whole line. */
             buf[0] = '\0';
             l.pos = l.len = 0;
             refreshLine(&l);
             break;
-        case CTRL_K: /* Ctrl+k, delete from current to end of line. */
+        case KEY_CTRL_K: /* Ctrl+k, delete from current to end of line. */
             buf[l.pos] = '\0';
             l.len = l.pos;
             refreshLine(&l);
             break;
-        case CTRL_A: /* Ctrl+a, go to the start of the line */
+        case KEY_CTRL_A: /* Ctrl+a, go to the start of the line */
             linenoiseEditMoveHome(&l);
             break;
-        case CTRL_E: /* ctrl+e, go to the end of the line */
+        case KEY_CTRL_E: /* ctrl+e, go to the end of the line */
             linenoiseEditMoveEnd(&l);
             break;
-        case CTRL_L: /* ctrl+l, clear screen */
+        case KEY_CTRL_L: /* ctrl+l, clear screen */
             linenoiseClearScreen();
             refreshLine(&l);
             break;
-        case CTRL_W: /* ctrl+w, delete previous word */
+        case KEY_CTRL_W: /* ctrl+w, delete previous word */
             linenoiseEditDeletePrevWord(&l);
             break;
         }
