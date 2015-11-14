@@ -122,6 +122,7 @@
 #define LINENOISE_MAX_LINE 4096
 static char *unsupported_term[] = {"dumb","cons25","emacs",NULL};
 static linenoiseCompletionCallback *completionCallback = NULL;
+static linenoiseKeystrokeCallback *keystrokeCallback = NULL;
 
 static struct termios orig_termios; /* In order to restore at exit.*/
 static int rawmode = 0; /* For atexit() function to check if restore is needed*/
@@ -131,26 +132,8 @@ static int history_max_len = LINENOISE_DEFAULT_HISTORY_MAX_LEN;
 static int history_len = 0;
 static char **history = NULL;
 
-/* The linenoiseState structure represents the state during line editing.
- * We pass this state to functions implementing specific editing
- * functionalities. */
-struct linenoiseState {
-    int ifd;            /* Terminal stdin file descriptor. */
-    int ofd;            /* Terminal stdout file descriptor. */
-    char *buf;          /* Edited line buffer. */
-    size_t buflen;      /* Edited line buffer size. */
-    const char *prompt; /* Prompt to display. */
-    size_t plen;        /* Prompt length. */
-    size_t pos;         /* Current cursor position. */
-    size_t oldpos;      /* Previous refresh cursor position. */
-    size_t len;         /* Current edited line length. */
-    size_t cols;        /* Number of columns in terminal. */
-    size_t maxrows;     /* Maximum num of rows used so far (multiline mode) */
-    int history_index;  /* The history index we are currently editing. */
-};
-
 enum KEY_ACTION{
-	KEY_NULL = 0,	    /* NULL */
+	KEY_NULL = 0,           /* NULL */
 	KEY_CTRL_A = 1,         /* Ctrl+a */
 	KEY_CTRL_B = 2,         /* Ctrl-b */
 	KEY_CTRL_C = 3,         /* Ctrl-c */
@@ -427,6 +410,10 @@ void linenoiseAddCompletion(linenoiseCompletions *lc, const char *str) {
     }
     lc->cvec = cvec;
     lc->cvec[lc->len++] = copy;
+}
+
+void linenoiseSetKeystrokeCallback(linenoiseKeystrokeCallback *fn) {
+    keystrokeCallback = fn;
 }
 
 /* =========================== Line editing ================================= */
@@ -750,11 +737,15 @@ static int linenoiseEdit(int stdin_fd, int stdout_fd, char *buf, size_t buflen, 
     linenoiseHistoryAdd("");
 
     if (write(l.ofd,prompt,l.plen) == -1) return -1;
+    
     while(1) {
         char c;
         int nread;
         char seq[3];
-
+        
+        if (keystrokeCallback)
+            keystrokeCallback(&l);
+        
         nread = read(l.ifd,&c,1);
         if (nread <= 0) return l.len;
 
