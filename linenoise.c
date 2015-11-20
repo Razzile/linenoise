@@ -305,6 +305,13 @@ void linenoiseClearScreen(void) {
     }
 }
 
+/* clear the current line */
+void linenoiseClearLine(void) {
+    if (write(STDOUT_FILENO, "\x1b[2K \r", 6) <= 0) {
+        /* nothing to do, just to avoid warning. */
+    }
+}
+
 /* Beep, used for completion when there is nothing to complete or when all
  * the choices were already shown. */
 static void linenoiseBeep(void) {
@@ -743,9 +750,6 @@ static int linenoiseEdit(int stdin_fd, int stdout_fd, char *buf, size_t buflen, 
         int nread;
         char seq[3];
         
-        if (keystrokeCallback)
-            keystrokeCallback(&l);
-        
         nread = read(l.ifd,&c,1);
         if (nread <= 0) return l.len;
 
@@ -861,6 +865,8 @@ static int linenoiseEdit(int stdin_fd, int stdout_fd, char *buf, size_t buflen, 
             break;
         default:
             if (linenoiseEditInsert(&l,c)) return -1;
+            if (keystrokeCallback)
+                keystrokeCallback(&l);
             break;
         case KEY_CTRL_U: /* Ctrl+u, delete the whole line. */
             buf[0] = '\0';
