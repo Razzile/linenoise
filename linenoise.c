@@ -116,6 +116,8 @@
 #include <sys/types.h>
 #include <sys/ioctl.h>
 #include <unistd.h>
+
+#define __LINENOISE_PRIVATE_ACCESS
 #include "linenoise.h"
 
 #define LINENOISE_DEFAULT_HISTORY_MAX_LEN 100
@@ -156,7 +158,6 @@ enum KEY_ACTION{
 
 static void linenoiseAtExit(void);
 int linenoiseHistoryAdd(const char *line);
-static void refreshLine(struct linenoiseState *l);
 
 /* Debugging macro. */
 #if 0
@@ -186,7 +187,7 @@ void linenoiseSetMultiLine(int ml) {
 
 /* Return true if the terminal name is in the list of terminals we know are
  * not able to understand basic escape sequences. */
-static int isUnsupportedTerm(void) {
+int isUnsupportedTerm(void) {
     char *term = getenv("TERM");
     int j;
 
@@ -197,7 +198,7 @@ static int isUnsupportedTerm(void) {
 }
 
 /* Raw mode: 1960 magic shit. */
-static int enableRawMode(int fd) {
+int enableRawMode(int fd) {
     struct termios raw;
 
     if (!isatty(STDIN_FILENO)) goto fatal;
@@ -232,7 +233,7 @@ fatal:
     return -1;
 }
 
-static void disableRawMode(int fd) {
+void disableRawMode(int fd) {
     /* Don't even check the return value as it's too late. */
     if (rawmode && tcsetattr(fd,TCSAFLUSH,&orig_termios) != -1)
         rawmode = 0;
@@ -241,7 +242,7 @@ static void disableRawMode(int fd) {
 /* Use the ESC [6n escape sequence to query the horizontal cursor position
  * and return it. On error -1 is returned, on success the position of the
  * cursor. */
-static int getCursorPosition(int ifd, int ofd) {
+int getCursorPositionX(int ifd, int ofd) {
     char buf[32];
     int cols, rows;
     unsigned int i = 0;
@@ -263,9 +264,33 @@ static int getCursorPosition(int ifd, int ofd) {
     return cols;
 }
 
+
+
+int getCursorPositionY(int ifd, int ofd) {
+    char buf[32];
+    int cols, rows;
+    unsigned int i = 0;
+    
+    /* Report cursor location */
+    if (write(ofd, "\x1b[6n", 4) != 4) return -1;
+    
+    /* Read the response: ESC [ rows ; cols R */
+    while (i < sizeof(buf)-1) {
+        if (read(ifd,buf+i,1) != 1) break;
+        if (buf[i] == 'R') break;
+        i++;
+    }
+    buf[i] = '\0';
+    
+    /* Parse it. */
+    if (buf[0] != 27 || buf[1] != '[') return -1;
+    if (sscanf(buf+2,"%d;%d",&rows,&cols) != 2) return -1;
+    return rows;
+}
+
 /* Try to get the number of columns in the current terminal, or assume 80
  * if it fails. */
-static int getColumns(int ifd, int ofd) {
+int getColumns(int ifd, int ofd) {
     struct winsize ws;
 
     if (ioctl(1, TIOCGWINSZ, &ws) == -1 || ws.ws_col == 0) {
@@ -273,12 +298,12 @@ static int getColumns(int ifd, int ofd) {
         int start, cols;
 
         /* Get the initial position so we can restore it later. */
-        start = getCursorPosition(ifd,ofd);
+        start = getCursorPositionX(ifd,ofd);
         if (start == -1) goto failed;
 
         /* Go to right margin and get position. */
         if (write(ofd,"\x1b[999C",6) != 6) goto failed;
-        cols = getCursorPosition(ifd,ofd);
+        cols = getCursorPositionX(ifd,ofd);
         if (cols == -1) goto failed;
 
         /* Restore position. */
@@ -577,7 +602,7 @@ static void refreshMultiLine(struct linenoiseState *l) {
 
 /* Calls the two low level functions refreshSingleLine() or
  * refreshMultiLine() according to the selected mode. */
-static void refreshLine(struct linenoiseState *l) {
+void refreshLine(struct linenoiseState *l) {
     if (mlmode)
         refreshMultiLine(l);
     else
@@ -752,7 +777,7 @@ static int linenoiseEdit(int stdin_fd, int stdout_fd, char *buf, size_t buflen, 
         
         nread = read(l.ifd,&c,1);
         if (nread <= 0) return l.len;
-
+        
         /* Only autocomplete when the callback is set. It returns < 0 when
          * there was an error reading from fd. Otherwise it will return the
          * character that should be handled next. */
@@ -865,8 +890,6 @@ static int linenoiseEdit(int stdin_fd, int stdout_fd, char *buf, size_t buflen, 
             break;
         default:
             if (linenoiseEditInsert(&l,c)) return -1;
-            if (keystrokeCallback)
-                keystrokeCallback(&l);
             break;
         case KEY_CTRL_U: /* Ctrl+u, delete the whole line. */
             buf[0] = '\0';
@@ -892,6 +915,8 @@ static int linenoiseEdit(int stdin_fd, int stdout_fd, char *buf, size_t buflen, 
             linenoiseEditDeletePrevWord(&l);
             break;
         }
+        if (keystrokeCallback)
+            keystrokeCallback(&l);
     }
     return l.len;
 }

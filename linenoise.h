@@ -83,6 +83,20 @@ void linenoiseClearLine(void);
 void linenoiseSetMultiLine(int ml);
 void linenoisePrintKeyCodes(void);
 
+
+/* The following functions are private functions used by linenoise.   */
+/* This list is incomplete. Feel free to add *all* private functions. */
+/* USE WITH CAUTION                                                   */
+#ifdef __LINENOISE_PRIVATE_ACCESS
+    int isUnsupportedTerm(void);
+    int enableRawMode(int fd);
+    void disableRawMode(int fd);
+    int getCursorPositionX(int ifd, int ofd);
+    int getCursorPositionY(int ifd, int ofd);
+    int getColumns(int ifd, int ofd);
+    void refreshLine(struct linenoiseState *l);
+#endif
+
 #ifdef __cplusplus
 }
 #endif
