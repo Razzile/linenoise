@@ -93,6 +93,7 @@ void linenoisePrintKeyCodes(void);
     void disableRawMode(int fd);
     int getCursorPositionX(int ifd, int ofd);
     int getCursorPositionY(int ifd, int ofd);
+    void setCursorPosition(int ofd, int x, int y);
     int getColumns(int ifd, int ofd);
     void refreshLine(struct linenoiseState *l);
 #endif

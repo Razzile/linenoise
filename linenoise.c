@@ -288,6 +288,11 @@ int getCursorPositionY(int ifd, int ofd) {
     return rows;
 }
 
+void setCursorPosition(int ofd, int x, int y) {
+    dprintf(ofd, "\033[%d;%dH", y, x);
+
+}
+
 /* Try to get the number of columns in the current terminal, or assume 80
  * if it fails. */
 int getColumns(int ifd, int ofd) {
